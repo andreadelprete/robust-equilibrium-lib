@@ -24,6 +24,8 @@ endif()
 
 SETUP_PROJECT()
 
+option(BUILD_TESTS "Build tests" ON)
+
 # Inhibit all warning messages.
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
 
@@ -65,7 +67,10 @@ endif()
 ADD_REQUIRED_DEPENDENCY("qpOASES")
 
 add_subdirectory (src)
-add_subdirectory (test)
+
+if(${BUILD_TESTS})
+  add_subdirectory (test)
+endif()
 
 SETUP_PROJECT_FINALIZE()
 SETUP_PROJECT_CPACK()
