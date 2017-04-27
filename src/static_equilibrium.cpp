@@ -28,7 +28,7 @@ StaticEquilibrium::StaticEquilibrium(string name, double mass, unsigned int gene
   {
     init_cdd_library();
     m_is_cdd_initialized = true;
-    srand ( (unsigned int) (time(NULL)) );
+    //srand ( (unsigned int) (time(NULL)) );
   }
 
   if(generatorsPerContact<3)
@@ -75,7 +75,7 @@ bool StaticEquilibrium::computeGenerators(Cref_matrixX3 contactPoints, Cref_matr
     for(long int i=0; i<c; i++)
     {
       // check that contact normals have norm 1
-      if(fabs(contactNormals.row(i).norm()-1.0)>1e-6)
+      if(fabs(contactNormals.row(i).norm()-1.0)>1e-4)
       {
         SEND_ERROR_MSG("Contact normals should have norm 1, this has norm %f"+toString(contactNormals.row(i).norm()));
         return false;
@@ -302,6 +302,27 @@ LP_status StaticEquilibrium::computeEquilibriumRobustness(Cref_vector3 com, doub
   SEND_ERROR_MSG("checkRobustEquilibrium is not implemented for the specified algorithm");
   return LP_STATUS_ERROR;
 }
+
+LP_status StaticEquilibrium::computeEquilibriumRobustness(Cref_vector3 com, Cref_vector3 acc, double &robustness){
+  // Take the acceleration in account in D and d :
+  Matrix63 old_D = m_D;
+  Vector6 old_d = m_d;
+  m_D.block<3,3>(3,0) = crossMatrix(-m_mass * (m_gravity - acc));
+  m_d.head<3>()= m_mass * (m_gravity - acc);
+  // compute equilibrium robustness with the new D and d
+  LP_status status = computeEquilibriumRobustness(com,robustness);
+  // Switch back to the original values of D and d
+  m_D = old_D;
+  m_d = old_d;
+  return status;
+}
+
+/**
+  m_d.setZero();
+  m_d.head<3>() = m_mass*m_gravity;
+  m_D.setZero();
+  m_D.block<3,3>(3,0) = crossMatrix(-m_mass*m_gravity);
+*/
 
 LP_status StaticEquilibrium::checkRobustEquilibrium(Cref_vector3 com, bool &equilibrium, double e_max)
 {
@@ -561,5 +582,60 @@ double StaticEquilibrium::convert_emax_to_b0(double emax)
 {
   return (emax/m_b0_to_emax_coefficient);
 }
+
+
+LP_status StaticEquilibrium::findMaximumAcceleration(Cref_matrixXX A, Cref_vector6 h, double& alpha0){
+  int m = (int)A.cols() -1 ; // 4* number of contacts
+  VectorX b_a0(m+1);
+  VectorX c = VectorX::Zero(m+1);
+  c(m) = -1.0;  // because we search max alpha0
+  VectorX lb = VectorX::Zero(m+1);
+  VectorX ub = VectorX::Ones(m+1)*1e10; // Inf
+  VectorX Alb = -h;
+  VectorX Aub = -h;
+
+
+  LP_status lpStatus = m_solver->solve(c, lb, ub, A, Alb, Aub, b_a0);
+  if(lpStatus==LP_STATUS_UNBOUNDED){
+    //SEND_DEBUG_MSG("Primal LP problem is unbounded : "+toString(lpStatus));
+    alpha0 = std::numeric_limits<double>::infinity();
+    return lpStatus;
+  }
+  if(lpStatus==LP_STATUS_OPTIMAL)
+  {
+    alpha0 = -1.0 * m_solver->getObjectiveValue();
+    return lpStatus;
+  }
+  alpha0 = 0.0;
+  //SEND_DEBUG_MSG("Primal LP problem could not be solved: "+toString(lpStatus));
+  return lpStatus;
+
+}
+
+bool StaticEquilibrium::checkAdmissibleAcceleration(Cref_matrixXX G, Cref_matrixXX H, Cref_vector6 h, Cref_vector3 a ){
+  int m = (int)G.cols(); // number of contact * 4
+  VectorX b(m);
+  VectorX c = VectorX::Zero(m);
+  VectorX lb = VectorX::Zero(m);
+  VectorX ub = VectorX::Ones(m)*1e10; // Inf
+  VectorX Alb = H*a + h;
+  VectorX Aub = H*a + h;
+  int iter = 0;
+  LP_status lpStatus;
+  do{
+    lpStatus = m_solver->solve(c, lb, ub, G, Alb, Aub, b);
+    iter ++;
+  }while(lpStatus == LP_STATUS_ERROR && iter < 5);
+
+  if(lpStatus==LP_STATUS_OPTIMAL || lpStatus==LP_STATUS_UNBOUNDED)
+  {
+    return true;
+  }
+  else{
+    //SEND_DEBUG_MSG("Primal LP problem could not be solved: "+toString(lpStatus));
+    return false;
+  }
+}
+
 
 } // end namespace robust_equilibrium

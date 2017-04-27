@@ -154,6 +154,30 @@ public:
   LP_status computeEquilibriumRobustness(Cref_vector3 com, double &robustness);
 
   /**
+   * @brief Compute a measure of the robustness of the equilibrium of the specified com position.
+   * This amounts to solving the following LP:
+   *       find          b, b0
+   *       maximize      b0
+   *       subject to    G b = D c + d
+   *                     b >= b0
+   *  where:
+   *     b         are the coefficient of the contact force generators (f = G b)
+   *     b0        is a parameter proportional to the robustness measure
+   *     c         is the specified CoM position
+   *     G         is the 6xm matrix whose columns are the gravito-inertial wrench generators
+   *     D         is the 6x3 matrix mapping the CoM position in gravito-inertial wrench
+   *     d         is the 6d vector containing the gravity part of the gravito-inertial wrench
+   * @param com The 3d center of mass position to test.
+   * @param acc The 3d acceleration of the CoM.
+   * @param robustness The computed measure of robustness.
+   * @return The status of the LP solver.
+   * @note If the system is in force closure the status will be LP_STATUS_UNBOUNDED, meaning that the
+   * system can reach infinite robustness. This is due to the fact that we are not considering
+   * any upper limit for the friction cones.
+   */
+  LP_status computeEquilibriumRobustness(Cref_vector3 com, Cref_vector3 acc, double &robustness);
+
+  /**
    * @brief Check whether the specified com position is in robust equilibrium.
    * This amounts to solving the following feasibility LP:
    *       find          b
@@ -234,6 +258,45 @@ public:
    * contact has been defined, will return LP_STATUS_INFEASIBLE
    */
   LP_status getPolytopeInequalities(MatrixXX& H, VectorX& h) const;
+
+  /**
+   * @brief findMaximumAcceleration Find the maximal acceleration along a given direction
+          find          b, alpha0
+          maximize      alpha0
+          subject to    -h <= [-G  (Hv)] [b a0]^T   <= -h
+                        0       <= [b a0]^T <= Inf
+
+
+          b         are the coefficient of the contact force generators (f = V b)
+          v         is the vector3 defining the direction of the motion
+          alpha0    is the maximal amplitude of the acceleration, for the given direction v
+          c         is the CoM position
+          G         is the matrix whose columns are the gravito-inertial wrench generators
+          A         is [-G  (Hv)]
+   * @param A
+   * @param h
+   * @param alpha0
+   * @return The status of the LP solver.
+   */
+  LP_status findMaximumAcceleration(Cref_matrixXX A, Cref_vector6 h, double& alpha0);
+
+  /**
+   * @brief checkAdmissibleAcceleration return true if the given acceleration is admissible for the given contacts
+          find          b
+          subject to    G b = Ha + h
+                        0       <= b <= Inf
+          b         are the coefficient of the contact force generators (f = V b)
+          a         is the vector3 defining the acceleration
+          G         is the matrix whose columns are the gravito-inertial wrench generators
+          h and H come from polytope inequalities
+   * @param G
+   * @param H
+   * @param h
+   * @param a
+   * @return true if the acceleration is admissible, false otherwise
+   */
+  bool checkAdmissibleAcceleration(Cref_matrixXX G, Cref_matrixXX H, Cref_vector6 h, Cref_vector3 a );
+
 };
 
 } // end namespace robust_equilibrium
