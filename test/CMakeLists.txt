@@ -19,5 +19,6 @@ add_executable(test_static_equilibrium test_static_equilibrium.cpp)
 add_executable(test_LP_solvers test_LP_solvers.cpp)
 
 TARGET_LINK_LIBRARIES(test_LP_solvers robust-equilibrium-lib)
+PKG_CONFIG_USE_DEPENDENCY(test_LP_solvers qpOASES)
 TARGET_LINK_LIBRARIES(test_static_equilibrium robust-equilibrium-lib)
 #~ TARGET_LINK_LIBRARIES(polytopetest polytope ${SRC_DIR}/../external/cddlib-094b/lib-src/libcdd.a)
