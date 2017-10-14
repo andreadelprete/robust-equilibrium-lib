@@ -68,7 +68,7 @@ ADD_REQUIRED_DEPENDENCY("qpOASES")
 
 add_subdirectory (src)
 
-if(${BUILD_TESTS})
+if(BUILD_TESTS)
   add_subdirectory (test)
 endif()
 

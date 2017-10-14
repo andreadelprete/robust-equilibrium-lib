@@ -164,7 +164,7 @@ int test_findExtremumOverLine(StaticEquilibrium *solver_to_test, StaticEquilibri
                               const string& PERF_STRING_TEST, const string& PERF_STRING_GROUND_TRUTH, int verb=0)
 {
   int error_counter = 0;
-  Vector3 a, com;
+  RVector3 a, com;
   LP_status status;
   double desired_robustness, robustness;
   for(unsigned int i=0; i<N_TESTS; i++)
